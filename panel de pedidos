@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panel de Pedidos - El Michi</title>
+<style>
+  :root{
+    --bg:#0f172a;
+    --card:#111827;
+    --line:rgba(255,255,255,.08);
+    --text:#f8fafc;
+    --muted:rgba(248,250,252,.75);
+    --paid:#60a5fa;
+    --prep:#f59e0b;
+    --del:#22c55e;
+    --can:#ef4444;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:linear-gradient(180deg,#08111f,#0f172a);
+    color:var(--text);
+    padding:16px;
+  }
+
+  .app{
+    max-width:1100px;
+    margin:0 auto;
+  }
+
+  .top{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
+
+  h1{
+    margin:0;
+    font-size:clamp(26px,4vw,38px);
+  }
+
+  .sub{
+    color:var(--muted);
+    margin-top:6px;
+    line-height:1.4;
+  }
+
+  .info{
+    padding:10px 14px;
+    border:1px solid var(--line);
+    border-radius:16px;
+    background:rgba(255,255,255,.05);
+    color:var(--muted);
+    font-size:14px;
+  }
+
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:14px;
+  }
+
+  .ticket{
+    background:rgba(17,24,39,.96);
+    border:1px solid var(--line);
+    border-radius:20px;
+    overflow:hidden;
+    box-shadow:0 14px 30px rgba(0,0,0,.22);
+  }
+
+  .ticket.paid{border-color:rgba(96,165,250,.35)}
+  .ticket.preparing{border-color:rgba(245,158,11,.45)}
+  .ticket.delivered{border-color:rgba(34,197,94,.45)}
+  .ticket.cancelled{border-color:rgba(239,68,68,.45)}
+
+  .head{
+    padding:14px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    align-items:flex-start;
+  }
+
+  .name{
+    font-size:18px;
+    font-weight:900;
+    margin-bottom:4px;
+  }
+
+  .meta{
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.45;
+  }
+
+  .badges{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:flex-end;
+  }
+
+  .badge{
+    padding:7px 10px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.3px;
+    border:1px solid transparent;
+    white-space:nowrap;
+  }
+
+  .badge.paid{background:rgba(96,165,250,.16); color:#bfdbfe; border-color:rgba(96,165,250,.35)}
+  .badge.preparing{background:rgba(245,158,11,.16); color:#fde68a; border-color:rgba(245,158,11,.35)}
+  .badge.delivered{background:rgba(34,197,94,.16); color:#bbf7d0; border-color:rgba(34,197,94,.35)}
+  .badge.cancelled{background:rgba(239,68,68,.16); color:#fecaca; border-color:rgba(239,68,68,.35)}
+  .badge.none{background:rgba(148,163,184,.14); color:#e5e7eb; border-color:rgba(148,163,184,.25)}
+
+  .body{
+    padding:14px;
+  }
+
+  ul{
+    margin:0;
+    padding-left:18px;
+    line-height:1.55;
+    color:#e5e7eb;
+  }
+
+  .total{
+    margin-top:12px;
+    font-size:18px;
+    font-weight:900;
+  }
+
+  .controls{
+    padding:14px;
+    border-top:1px solid var(--line);
+    display:grid;
+    gap:10px;
+  }
+
+  .row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  button{
+    border:none;
+    border-radius:14px;
+    padding:10px 12px;
+    font-weight:800;
+    cursor:pointer;
+    color:white;
+    flex:1 1 120px;
+  }
+
+  .btn-prep{background:linear-gradient(135deg,#f59e0b,#fbbf24); color:#111827}
+  .btn-del{background:linear-gradient(135deg,#22c55e,#4ade80); color:#052e16}
+  .btn-can{background:linear-gradient(135deg,#ef4444,#f87171)}
+  .btn-paid{background:linear-gradient(135deg,#60a5fa,#93c5fd); color:#0f172a}
+  .btn-clear{background:linear-gradient(135deg,#374151,#4b5563)}
+
+  .empty{
+    padding:24px 14px;
+    text-align:center;
+    color:var(--muted);
+    background:rgba(255,255,255,.05);
+    border:1px dashed rgba(255,255,255,.14);
+    border-radius:18px;
+  }
+
+  .expired{
+    margin-top:14px;
+    font-size:13px;
+    color:rgba(248,250,252,.68);
+  }
+
+  @media (max-width:640px){
+    body{padding:10px}
+    .head{flex-direction:column}
+    .badges{justify-content:flex-start}
+    .row{flex-direction:column}
+    button{width:100%}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div>
+        <h1>Panel de Pedidos</h1>
+        <div class="sub">Aquí aparecen los pedidos enviados desde el menú. Cada pedido se borra solo después de 12 horas.</div>
+      </div>
+      <div class="info" id="contador">Pedidos: 0</div>
+    </div>
+
+    <div id="grid"></div>
+    <div class="expired">Los pedidos viejos se limpian automáticamente.</div>
+  </div>
+
+<script>
+const PEDIDOS_KEY = "michi_pedidos_v1";
+const PEDIDOS_HORAS_BORRAR = 12;
+
+function leerPedidosGuardados() {
+  const ahora = Date.now();
+  const pedidos = JSON.parse(localStorage.getItem(PEDIDOS_KEY) || "[]");
+  const vigentes = pedidos.filter(p => !p.expiresAt || p.expiresAt > ahora);
+
+  if (vigentes.length !== pedidos.length) {
+    localStorage.setItem(PEDIDOS_KEY, JSON.stringify(vigentes));
+  }
+
+  return vigentes;
+}
+
+function guardarPedidos(pedidos) {
+  localStorage.setItem(PEDIDOS_KEY, JSON.stringify(pedidos));
+}
+
+function etiquetaEstado(status) {
+  if (status === "preparing") return "Preparando";
+  if (status === "delivered") return "Entregado";
+  if (status === "cancelled") return "Cancelado";
+  return "Sin estado";
+}
+
+function claseEstado(status) {
+  if (status === "preparing") return "preparing";
+  if (status === "delivered") return "delivered";
+  if (status === "cancelled") return "cancelled";
+  return "none";
+}
+
+function render() {
+  const grid = document.getElementById("grid");
+  const pedidos = leerPedidosGuardados();
+
+  document.getElementById("contador").innerText = "Pedidos: " + pedidos.length;
+  grid.innerHTML = "";
+
+  if (!pedidos.length) {
+    grid.innerHTML = `
+      <div class="empty">
+        <div style="font-size:34px;">🧾</div>
+        <div style="font-weight:900;margin-top:8px;">Aún no llegan pedidos</div>
+        <div style="margin-top:4px;">Cuando envíes uno desde el menú, aparecerá aquí</div>
+      </div>
+    `;
+    return;
+  }
+
+  pedidos.forEach(pedido => {
+    const card = document.createElement("div");
+    card.className = "ticket";
+    if (pedido.paid) card.classList.add("paid");
+    if (pedido.status) card.classList.add(pedido.status);
+
+    const estadoBadge = pedido.status
+      ? `<span class="badge ${claseEstado(pedido.status)}">${etiquetaEstado(pedido.status)}</span>`
+      : `<span class="badge none">Sin estado</span>`;
+
+    const pagoBadge = pedido.paid
+      ? `<span class="badge paid">Pagado</span>`
+      : `<span class="badge none">No pagado</span>`;
+
+    card.innerHTML = `
+      <div class="head">
+        <div>
+          <div class="name">${pedido.cliente || "Cliente"}</div>
+          <div class="meta">
+            ${new Date(pedido.createdAt || Date.now()).toLocaleString("es-MX")}<br>
+            Entrega: ${pedido.entrega || "-"}<br>
+            Pago: ${pedido.pago || "-"}<br>
+            Expira: ${new Date(pedido.expiresAt).toLocaleString("es-MX")}
+          </div>
+        </div>
+        <div class="badges">
+          ${pagoBadge}
+          ${estadoBadge}
+        </div>
+      </div>
+
+      <div class="body">
+        <ul>
+          ${(pedido.items || []).map(item => `<li>${item.replace(/\n/g, "<br>")}</li>`).join("")}
+        </ul>
+        <div class="total">Total: $${pedido.total || 0}</div>
+      </div>
+
+      <div class="controls">
+        <div class="row">
+          <button class="btn-prep" onclick="setEstado(${pedido.id}, 'preparing')">Preparando</button>
+          <button class="btn-del" onclick="setEstado(${pedido.id}, 'delivered')">Entregado</button>
+          <button class="btn-can" onclick="setEstado(${pedido.id}, 'cancelled')">Cancelado</button>
+          <button class="btn-paid" onclick="marcarPagado(${pedido.id})">Pagado</button>
+        </div>
+        <button class="btn-clear" onclick="quitarEstado(${pedido.id})">Quitar estado</button>
+      </div>
+    `;
+
+    grid.appendChild(card);
+  });
+}
+
+function setEstado(id, estado) {
+  const pedidos = leerPedidosGuardados();
+  const pedido = pedidos.find(p => p.id === id);
+  if (!pedido) return;
+  pedido.status = estado;
+  guardarPedidos(pedidos);
+  render();
+}
+
+function marcarPagado(id) {
+  const pedidos = leerPedidosGuardados();
+  const pedido = pedidos.find(p => p.id === id);
+  if (!pedido) return;
+  pedido.paid = true;
+  guardarPedidos(pedidos);
+  render();
+}
+
+function quitarEstado(id) {
+  const pedidos = leerPedidosGuardados();
+  const pedido = pedidos.find(p => p.id === id);
+  if (!pedido) return;
+  pedido.status = "";
+  guardarPedidos(pedidos);
+  render();
+}
+
+window.addEventListener("storage", render);
+
+render();
+setInterval(render, 60000);
+</script>
+</body>
+</html>
