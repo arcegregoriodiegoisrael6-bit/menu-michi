@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Pedidos</title>
+
+<style>
+:root{
+  --bg:#0f172a;
+  --card:#111827;
+  --line:rgba(255,255,255,.08);
+  --text:#f8fafc;
+  --muted:rgba(248,250,252,.75);
+}
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  font-family:Arial, Helvetica, sans-serif;
+  background:linear-gradient(180deg,#08111f,#0f172a);
+  color:var(--text);
+  padding:14px;
+}
+
+.app{
+  max-width:1100px;
+  margin:auto;
+}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+h1{
+  margin:0;
+}
+
+.info{
+  padding:10px 14px;
+  border-radius:14px;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--line);
+  color:var(--muted);
+}
+
+#grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:12px;
+}
+
+.ticket{
+  background:#111827;
+  border-radius:18px;
+  overflow:hidden;
+  border:2px solid rgba(255,255,255,.08);
+  box-shadow:0 12px 28px rgba(0,0,0,.20);
+}
+
+.ticket.preparing{
+  border-color:#f59e0b;
+  background:linear-gradient(180deg, rgba(245,158,11,.20), rgba(17,24,39,.98));
+}
+
+.ticket.delivered{
+  border-color:#22c55e;
+  background:linear-gradient(180deg, rgba(34,197,94,.18), rgba(17,24,39,.98));
+}
+
+.ticket.cancelled{
+  border-color:#ef4444;
+  background:linear-gradient(180deg, rgba(239,68,68,.18), rgba(17,24,39,.98));
+}
+
+.ticket.paid{
+  box-shadow:0 0 0 2px #60a5fa inset;
+}
+
+.head{
+  padding:12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+
+.name{
+  font-size:18px;
+  font-weight:bold;
+}
+
+.meta{
+  font-size:12px;
+  color:#cbd5e1;
+  margin-top:5px;
+  line-height:1.4;
+}
+
+.body{
+  padding:12px;
+}
+
+ul{
+  margin:0;
+  padding-left:18px;
+  line-height:1.45;
+}
+
+.total{
+  font-size:18px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+.badges{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:4px;
+}
+
+.badge{
+  padding:5px 9px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:bold;
+  white-space:nowrap;
+}
+
+.paidBadge{
+  background:#60a5fa;
+  color:#082f49;
+}
+
+.prepBadge{
+  background:#f59e0b;
+  color:black;
+}
+
+.delBadge{
+  background:#22c55e;
+  color:black;
+}
+
+.canBadge{
+  background:#ef4444;
+  color:white;
+}
+
+.controls{
+  padding:10px;
+  display:grid;
+  gap:6px;
+}
+
+.row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+}
+
+button{
+  border:none;
+  border-radius:10px;
+  padding:8px 6px;
+  font-size:11px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.btnPrep{
+  background:#f59e0b;
+}
+
+.btnDel{
+  background:#22c55e;
+}
+
+.btnCan{
+  background:#ef4444;
+  color:white;
+}
+
+.btnPaid{
+  background:#60a5fa;
+}
+
+.empty{
+  text-align:center;
+  padding:30px;
+  background:#111827;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+@media (max-width:640px){
+  body{padding:10px}
+  .row{
+    grid-template-columns:repeat(2,1fr);
+  }
+  button{
+    padding:9px 6px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="top">
+    <h1>📋 Panel de Pedidos</h1>
+    <div class="info" id="contador">Pedidos: 0</div>
+  </div>
+
+  <div id="grid"></div>
+
+</div>
+
+<script>
+const KEY = "michi_pedidos_v1";
+
+function leer(){
+  const ahora = Date.now();
+  let pedidos = JSON.parse(localStorage.getItem(KEY) || "[]");
+  pedidos = pedidos.filter(p => p.expiresAt > ahora);
+  localStorage.setItem(KEY, JSON.stringify(pedidos));
+  return pedidos;
+}
+
+function guardar(pedidos){
+  localStorage.setItem(KEY, JSON.stringify(pedidos));
+}
+
+function render(){
+  const pedidos = leer();
+  document.getElementById("contador").innerText = "Pedidos: " + pedidos.length;
+
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  if(pedidos.length === 0){
+    grid.innerHTML = `
+      <div class="empty">
+        🧾 No hay pedidos
+      </div>
+    `;
+    return;
+  }
+
+  pedidos.forEach(p => {
+    let clases = "ticket";
+    if(p.status) clases += " " + p.status;
+    if(p.paid) clases += " paid";
+
+    let badges = "";
+
+    if(p.paid){
+      badges += `<div class="badge paidBadge">Pagado</div>`;
+    }
+
+    if(p.status === "preparing"){
+      badges += `<div class="badge prepBadge">Preparando</div>`;
+    }
+
+    if(p.status === "delivered"){
+      badges += `<div class="badge delBadge">Entregado</div>`;
+    }
+
+    if(p.status === "cancelled"){
+      badges += `<div class="badge canBadge">Cancelado</div>`;
+    }
+
+    if(!p.status){
+      badges += `<div class="badge" style="background:rgba(148,163,184,.14);color:#e5e7eb;">Sin estado</div>`;
+    }
+
+    grid.innerHTML += `
+      <div class="${clases}">
+        <div class="head">
+          <div>
+            <div class="name">👤 ${p.cliente}</div>
+            <div class="meta">
+              🚚 ${p.entrega}<br>
+              💳 ${p.pago}<br>
+              ⏰ ${new Date(p.createdAt || Date.now()).toLocaleString("es-MX")}
+            </div>
+          </div>
+          <div class="badges">
+            ${badges}
+          </div>
+        </div>
+
+        <div class="body">
+          <ul>
+            ${(p.items || []).map(i => `<li>${i}</li>`).join("")}
+          </ul>
+          <div class="total">💰 Total: $${p.total}</div>
+        </div>
+
+        <div class="controls">
+          <div class="row">
+            <button class="btnPrep" onclick="estado(${p.id},'preparing')">Preparando</button>
+            <button class="btnDel" onclick="estado(${p.id},'delivered')">Entregado</button>
+            <button class="btnCan" onclick="estado(${p.id},'cancelled')">Cancelado</button>
+            <button class="btnPaid" onclick="pagado(${p.id})">Pagado</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function estado(id, status){
+  const pedidos = leer();
+  const pedido = pedidos.find(p => p.id === id);
+  if(!pedido) return;
+  pedido.status = status;
+  guardar(pedidos);
+  render();
+}
+
+function pagado(id){
+  const pedidos = leer();
+  const pedido = pedidos.find(p => p.id === id);
+  if(!pedido) return;
+  pedido.paid = true;
+  guardar(pedidos);
+  render();
+}
+
+window.addEventListener("storage", render);
+render();
+setInterval(render, 60000);
+</script>
+
+</body>
+</html>
